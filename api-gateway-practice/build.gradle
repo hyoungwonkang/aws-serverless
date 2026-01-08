@@ -1,0 +1,50 @@
+// 부트는 필요 없으니, 부트 의존은 제거
+
+plugins {
+	id 'java'
+
+	// 구글 - gradle plugins 검색 - shadow 검색 - com.gradleup.shadow 선택 - 8.3.x 버전
+	id 'com.gradleup.shadow' version '8.3.9'
+}
+
+group = 'com.example'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
+}
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	// Lombok (버전 명시)
+	compileOnly 'org.projectlombok:lombok:1.18.30'
+	annotationProcessor 'org.projectlombok:lombok:1.18.30'
+
+	// AWS Lambda Java Core (Context, RequestHandler 등)
+	implementation 'com.amazonaws:aws-lambda-java-core:1.4.0'
+
+	// 이벤트 라이브러리
+	implementation 'com.amazonaws:aws-lambda-java-events:3.16.1'
+	
+	// JSON 파싱을 위한 라이브러리
+  	implementation 'com.fasterxml.jackson.core:jackson-databind:2.20.1'
+}
+
+// 컴파일 시 UTF-8 강제
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = 'UTF-8'
+}
+
+// 빌드 시 shadow Jar task 실행되도록 설정 (Fat Jar 설정)
+build.dependsOn shadowJar
