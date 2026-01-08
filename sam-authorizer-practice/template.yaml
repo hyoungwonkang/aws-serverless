@@ -10,17 +10,24 @@ Globals:
   Function:
     Timeout: 20
     MemorySize: 512
+    Runtime: java17
+    Architectures:
+      - x86_64
 
 Resources:
-  HelloWorldFunction:
+  # Lambda Authorizer
+  SecurityFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: OrderFunction
+      Handler: com.example.order.SecurityHandler::handleRequest
+
+  # Lambda
+  OrderFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
-      CodeUri: HelloWorldFunction
-      Handler: helloworld.App::handleRequest
-      Runtime: java17
-      Architectures:
-        - x86_64
-      MemorySize: 512
+      CodeUri: OrderFunction
+      Handler: order.App::handleRequest
       Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
         Variables:
           PARAM1: VALUE
