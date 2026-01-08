@@ -42,8 +42,8 @@ Resources:
             Method: get
 
 Outputs:
-
 # 출력 변수 이름 (API Gateway URL 출력)
   HelloWorldApi:
     Description: "API Gateway endpoint URL for Prod stage for Hello World function"
     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/Prod/hello/"
+    
