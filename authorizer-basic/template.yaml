@@ -1,0 +1,54 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Sample SAM Template for authorizer-basic
+
+Globals:
+  Function:
+    Timeout: 20
+    MemorySize: 512
+    Runtime: java17
+    Architectures:
+      - x86_64
+
+Resources:
+  # Lambda Authorizer
+  LoungeAuthorizerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: LoungeFunction
+      Handler: com.example.lounge.LoungeAuthorizerHandler::handleRequest
+
+  # API Gateway
+  LoungeRestApi:
+    Type: AWS::Serverless::Api # API Gateway를 의미하는 타입
+    Properties:
+      StageName: dev
+      Auth:
+        DefaultAuthorizer: LoungeAuthorizer # 기본 인증기 등록 (인증기 이름 등록)
+        Authorizers:
+          LoungeAuthorizer: # <--- 인증기 이름
+            FunctionArn: !GetAtt LoungeAuthorizerFunction.Arn # !Ref 안하고 !GetAtt 사용함. 인증기 (인증 람다) Arn 등록
+            Identity:
+              Header: Authorization # Authorization 헤더를 식별자로 사용
+
+  # Lambda
+  LoungeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: LoungeFunction
+      Handler: com.example.lounge.LoungeHandler::handleRequest
+      Environment: 
+        Variables:
+          PARAM1: VALUE
+      Events:
+        LoungeEntryCheck:
+          Type: Api 
+          Properties:
+            Path: /lounge
+            Method: get
+            RestApiId: !Ref LoungeRestApi # LoungeRestApi 리소스를 참조
+
+Outputs:
+  LoungeAuthorizaerApi:
+    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
+    Value: !Sub "https://${LoungeRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/dev/lounge/"
