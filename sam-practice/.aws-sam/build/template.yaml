@@ -1,20 +1,18 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Sample SAM Template for sam-basic
-
 Globals:
-  Function: # 람다 전역
+  Function:
     Timeout: 20
     MemorySize: 512
     Runtime: java17
-    Architectures: 
-      - x86_64
-
+    Architectures:
+    - x86_64
 Resources:
   HelloWorldFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: user/UserFunction
+      CodeUri: HelloWorldFunction
       Handler: com.example.user.UserHandler::handleRequest
       Events:
         GetUser:
@@ -22,10 +20,10 @@ Resources:
           Properties:
             Path: /users/{id}
             Method: get
-
+    Metadata:
+      SamResourceId: HelloWorldFunction
 Outputs:
-
   UserldApi:
-    Description: "API Gateway endpoint URL"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/Prod/users/"
-    
+    Description: API Gateway endpoint URL
+    Value:
+      Fn::Sub: https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/Prod/users/

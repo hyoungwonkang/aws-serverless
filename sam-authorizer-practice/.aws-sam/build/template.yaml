@@ -1,28 +1,25 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: >
-  sam-authorizer-practice
+Description: 'sam-authorizer-practice
 
   Sample SAM Template for sam-authorizer-practice
 
-# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+  '
 Globals:
   Function:
     Timeout: 20
     MemorySize: 512
     Runtime: java17
     Architectures:
-      - x86_64
-
+    - x86_64
 Resources:
-  # Lambda Authorizer
   SecurityFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: OrderFunction
+      CodeUri: SecurityFunction
       Handler: com.example.order.SecurityHandler::handleRequest
-
-  # API Gateway
+    Metadata:
+      SamResourceId: SecurityFunction
   OrderApi:
     Type: AWS::Serverless::Api
     Properties:
@@ -31,13 +28,14 @@ Resources:
         DefaultAuthorizer: OrderTokenAuthorizer
         Authorizers:
           OrderTokenAuthorizer:
-            FunctionArn: !GetAtt SecurityFunction.Arn
+            FunctionArn:
+              Fn::GetAtt:
+              - SecurityFunction
+              - Arn
             Identity:
               Header: Authorization
-
-  # Lambda
   OrderFunction:
-    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Type: AWS::Serverless::Function
     Properties:
       CodeUri: OrderFunction
       Handler: com.example.order.OrderHandler::handleRequest
@@ -46,13 +44,16 @@ Resources:
           PARAM1: VALUE
       Events:
         GetOrder:
-          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Type: Api
           Properties:
             Path: /orders/{orderId}
             Method: get
-            RestApiId: !Ref OrderApi
-
+            RestApiId:
+              Ref: OrderApi
+    Metadata:
+      SamResourceId: OrderFunction
 Outputs:
   MyApiUrl:
-    Description: "API Gateway endpoint URL"
-    Value: !Sub "https://${OrderApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/dev/orders/"
+    Description: API Gateway endpoint URL
+    Value:
+      Fn::Sub: https://${OrderApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/dev/orders/
