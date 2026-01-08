@@ -1,46 +1,49 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  sam-practice
+  sam-basic
 
-  Sample SAM Template for sam-practice
+  Sample SAM Template for sam-basic
 
-# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
-  Function:
+  Function: # 람다 전역
     Timeout: 20
     MemorySize: 512
+    # 리소스 정의에 있던것이나 겹치는것 방지하고자 전역으로 옮김.
+    Runtime: java17
+    Architectures: 
+      - x86_64
 
+# 리소스 정의 (Lambda API Gateway S3 DynamoDB 등)
 Resources:
   HelloWorldFunction:
-    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    # HelloWorldFunction: 리소스 이름(AWS cloudFormation에서 구분하는 논리적 ID). aws에서 관용적으로 사용하는 함수 이름임. 폴더명과 관련 없음
+    Type: AWS::Serverless::Function
     Properties:
+      # HelloWorldFunction 소스 폴더 이름
       CodeUri: HelloWorldFunction
+      # 람다 핸들러 (패키지.클래스::메서드)
       Handler: helloworld.App::handleRequest
-      Runtime: java17
-      Architectures:
-        - x86_64
-      MemorySize: 512
-      Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
+      # 환경 변수
+      Environment: 
         Variables:
           PARAM1: VALUE
+          COUNTRY: KOREA
+      # 이벤트 (트리거: 람다가 언제 동작하는지?)
       Events:
+        # 이벤트 이름 (논리적 ID로 사용)
+        # API Gateway를 임의로 제공하는 방식(임의로 제공된 API Gateway는 ServerlessRestApi라고 부릅니다.)
+        # 기본 스테이지가 Prod로 제공됩니다.
         HelloWorld:
-          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          # Api: REST API, HttpApi: HTTP API
+          Type: Api
           Properties:
             Path: /hello
             Method: get
 
 Outputs:
-  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
-  # Find out more about other implicit resources you can reference within SAM
-  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+# 출력 변수 이름 (API Gateway URL 출력)
   HelloWorldApi:
     Description: "API Gateway endpoint URL for Prod stage for Hello World function"
     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/Prod/hello/"
-  HelloWorldFunction:
-    Description: "Hello World Lambda Function ARN"
-    Value: !GetAtt HelloWorldFunction.Arn
-  HelloWorldFunctionIamRole:
-    Description: "Implicit IAM Role created for Hello World function"
-    Value: !GetAtt HelloWorldFunctionRole.Arn
+    
