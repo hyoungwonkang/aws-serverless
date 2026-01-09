@@ -1,0 +1,54 @@
+// Source code is decompiled from a .class file using FernFlower decompiler (from Intellij IDEA).
+package com.example.jwt;
+
+import com.amazonaws.services.lambda.runtime.Context;
+import com.amazonaws.services.lambda.runtime.RequestHandler;
+import com.amazonaws.services.lambda.runtime.events.APIGatewayCustomAuthorizerEvent;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+import java.nio.charset.StandardCharsets;
+import java.security.Key;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
+public class JwtAuthorizerHandler implements RequestHandler<APIGatewayCustomAuthorizerEvent, Map<String, Object>> {
+   private static final String SECRET_KEY = "this-is-my-super-secret-key-for-jwt-example";
+
+   public JwtAuthorizerHandler() {
+   }
+
+   public Map<String, Object> handleRequest(APIGatewayCustomAuthorizerEvent input, Context context) {
+      String token = input.getAuthorizationToken();
+      String methodArn = input.getMethodArn();
+      if (token != null && token.startsWith("Bearer")) {
+         token = token.substring(7);
+      }
+
+      try {
+         Key key = Keys.hmacShaKeyFor("this-is-my-super-secret-key-for-jwt-example".getBytes(StandardCharsets.UTF_8));
+         Claims claims = (Claims)Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody();
+         String userId = claims.getSubject();
+         context.getLogger().log("Verified User: " + userId);
+         return this.generateIamPolicy(userId, "Allow", methodArn);
+      } catch (Exception var8) {
+         context.getLogger().log("Token verification failed: " + var8.getMessage());
+         return this.generateIamPolicy("anonymous", "Deny", methodArn);
+      }
+   }
+
+   private Map<String, Object> generateIamPolicy(String principalId, String effect, String resource) {
+      Map<String, Object> authResponse = new HashMap();
+      authResponse.put("principalId", principalId);
+      Map<String, Object> policyDocument = new HashMap();
+      policyDocument.put("Version", "2012-10-17");
+      Map<String, Object> statement = new HashMap();
+      statement.put("Action", "execute-api:Invoke");
+      statement.put("Effect", effect);
+      statement.put("Resource", resource);
+      policyDocument.put("Statement", Collections.singletonList(statement));
+      authResponse.put("policyDocument", policyDocument);
+      return authResponse;
+   }
+}
