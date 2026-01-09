@@ -1,0 +1,58 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  sam-authorizer-practice
+
+  Sample SAM Template for sam-authorizer-practice
+
+Globals:
+  Function:
+    Timeout: 20
+    MemorySize: 512
+    Runtime: java17
+    Architectures:
+      - x86_64
+
+Resources:
+  # Lambda Authorizer
+  AuthorizerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: JwtFunction
+      Handler: com.example.jwt.JwtAuthorizerHandler::handleRequest
+
+  # API Gateway
+  ApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: dev
+      Auth:
+        DefaultAuthorizer: MyLambdaTokenAuthorizer
+        Authorizers:
+          MyLambdaTokenAuthorizer:
+            FunctionArn: !GetAtt AuthorizerFunction.Arn
+            Identity:
+              Header: Authorization
+              ReauthorizeEvery: 0
+
+  # Lambda
+  JwtFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: JwtFunction
+      Handler: com.example.jwt.JwtLambdaHandler::handleRequest
+      Environment:
+        Variables:
+          PARAM1: VALUE
+      Events:
+        SamAuthorizerJwt:
+          Type: Api 
+          Properties:
+            Path: /jwt
+            Method: get
+            RestApiId: !Ref ApiGateway
+
+Outputs:
+  MyApiUrl:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.${AWS::URLSuffix}/dev/jwt/"
