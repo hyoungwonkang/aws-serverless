@@ -1,0 +1,136 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  sam-cognito
+
+  Sample SAM Template for sam-cognito
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 20
+    MemorySize: 512
+    Runtime: java17
+    Architectures:
+      - x86_64
+    Environment: 
+      Variables:
+        USER_POOL_ID: !Ref CognitoUserPool
+        CLIENT_ID: !Ref CognitoUserPoolClient
+
+Resources:
+  # 유저 풀
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      UserPoolName: !Sub "${AWS::StackName}-userpool"
+      # 로그인 아이디
+      # 기본 속성: sub(사용자 고유 ID, UUID 형태), email, name, given_name, family_name, phone_number 등
+      UsernameAttributes:
+        - email
+      # 검증 수단
+      # 회원 가입 시 Cognito가 검증용 이메일로 인증 코드 자동 발송
+      AutoVerifiedAttributes:
+        - email
+      # 비밀번호 정책
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8  # 비밀번호 최소 길이 8자
+          RequireLowercase: false # 실습 편의를 위해 복잡도 완화
+          RequireNumbers: false
+          RequireSymbols: false
+          RequireUppercase: false
+      # 사용할 유저 프로필 정보
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Required: true
+          Mutable: true
+  
+  # 유저 풀 클라이언트
+  CognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      ClientName: !Sub "${AWS::StackName}-client"
+      UserPoolId: !Ref CognitoUserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        # 1. [보안 권장] Secure Remote Password (SRP)
+        # AWS Amplify나 SDK를 쓰는 프론트엔드에서 주로 사용
+        # 비밀번호가 네트워크를 타고 전송되지 않아 가장 안전
+        - ALLOW_USER_SRP_AUTH
+
+        # 2. [필수] 토큰 갱신 허용
+        # Access Token이 만료되었을 때,
+        # 사용자가 다시 로그인하지 않아도 Refresh Token으로 새 토큰 받음
+        - ALLOW_REFRESH_TOKEN_AUTH
+
+        # 3. [테스트/단순형] 일반 아이디/비번 인증
+        # Postman, Curl 또는 간단한 HTTP 요청으로 로그인할 때 사용.
+        # 실제 운영(Production) 웹/앱에서는 SRP를 쓰는 게 좋지만,
+        # 개발 중 테스트나 단순 구현을 위해 켜두는 것이 좋음
+        - ALLOW_USER_PASSWORD_AUTH
+
+  # API Gateway
+  CognitoRestApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Cors:
+        AllowOrigin: "'*'"
+        AllowMethods: "'*'"
+        AllowHeaders: "'*'"
+      GatewayResponses:
+        DEFAULT_4XX:
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Origin: "'*'"
+              Access-Control-Allow-headers: "'*'"
+        DEFAULT_5XX:
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Origin: "'*'"
+              Access-Control-Allow-headers: "'*'"
+      Auth:
+        # 기본 인증기 사용 안 함: 사용 시 Preflight 요청에서 401 unauthorized 발생
+        # DefaultAuthorizer: MyCognitoAuthorizer
+
+        # 인증기
+        Authorizers:
+          MyCognitoAuthorizer:
+            UserPoolArn: !GetAtt CognitoUserPool.Arn # 유저 풀 연결
+            IdentitySource: method.request.header.Authorization
+
+  CognitoFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: CognitoFunction
+      Handler: com.example.user.UserProfileHandler::handleRequest
+      Events:
+        HelloWorld:
+          Type: Api
+          Properties:
+            Path: /users/me
+            Method: get
+            RestApiId: !Ref CognitoRestApi
+            Auth:
+              Authorizer: MyCognitoAuthorizer
+
+Outputs:
+  CognitoApi:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${CognitoRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/Prod/users/me"
+  
+  # 유저 풀 ID 출력
+  CognitoUserPoolId:
+    Description: "Cognito User Pool Id"
+    Value: !Ref CognitoUserPool
+
+  # 클라이언트 ID 출력
+  CognitoClientId:
+    Description: "Cognito User Pool Client Id"
+    Value: !Ref CognitoUserPoolClient

@@ -1,0 +1,17 @@
+plugins {
+    id 'java'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'com.amazonaws:aws-lambda-java-core:1.2.2'
+    implementation 'com.amazonaws:aws-lambda-java-events:3.11.0'
+    // Jackson Databind
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.17.2'
+}
+
+sourceCompatibility = 17
+targetCompatibility = 17

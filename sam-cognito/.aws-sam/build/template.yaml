@@ -1,0 +1,115 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'sam-cognito
+
+  Sample SAM Template for sam-cognito
+
+  '
+Globals:
+  Function:
+    Timeout: 20
+    MemorySize: 512
+    Runtime: java17
+    Architectures:
+    - x86_64
+    Environment:
+      Variables:
+        USER_POOL_ID:
+          Ref: CognitoUserPool
+        CLIENT_ID:
+          Ref: CognitoUserPoolClient
+Resources:
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      UserPoolName:
+        Fn::Sub: ${AWS::StackName}-userpool
+      UsernameAttributes:
+      - email
+      AutoVerifiedAttributes:
+      - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: false
+          RequireNumbers: false
+          RequireSymbols: false
+          RequireUppercase: false
+      Schema:
+      - Name: email
+        AttributeDataType: String
+        Required: true
+        Mutable: true
+  CognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      ClientName:
+        Fn::Sub: ${AWS::StackName}-client
+      UserPoolId:
+        Ref: CognitoUserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+      - ALLOW_USER_SRP_AUTH
+      - ALLOW_REFRESH_TOKEN_AUTH
+      - ALLOW_USER_PASSWORD_AUTH
+  CognitoRestApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Cors:
+        AllowOrigin: '''*'''
+        AllowMethods: '''*'''
+        AllowHeaders: '''*'''
+      GatewayResponses:
+        DEFAULT_4XX:
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Origin: '''*'''
+              Access-Control-Allow-headers: '''*'''
+        DEFAULT_5XX:
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Origin: '''*'''
+              Access-Control-Allow-headers: '''*'''
+      Auth:
+        Authorizers:
+          MyCognitoAuthorizer:
+            UserPoolArn:
+              Fn::GetAtt:
+              - CognitoUserPool
+              - Arn
+            IdentitySource: method.request.header.Authorization
+  CognitoFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: CognitoFunction
+      Handler: com.example.user.UserProfileHandler::handleRequest
+      Events:
+        HelloWorld:
+          Type: Api
+          Properties:
+            Path: /users/me
+            Method: get
+            RestApiId:
+              Ref: CognitoRestApi
+            Auth:
+              Authorizer: MyCognitoAuthorizer
+    Metadata:
+      SamResourceId: CognitoFunction
+Outputs:
+  CognitoApi:
+    Description: API Gateway endpoint URL
+    Value:
+      Fn::Sub: https://${CognitoRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/Prod/users/me
+  CognitoUserPoolId:
+    Description: Cognito User Pool Id
+    Value:
+      Ref: CognitoUserPool
+  CognitoClientId:
+    Description: Cognito User Pool Client Id
+    Value:
+      Ref: CognitoUserPoolClient
