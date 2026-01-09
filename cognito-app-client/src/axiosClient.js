@@ -4,7 +4,7 @@ import axios from "axios";
 // Axios 인스턴스 생성 (기본 설정)
 const axiosClient = axios.create({
   // API Gateway 주소 입력 (/users/me 같은 상세 경로는 제외)
-  baseURL: 'https://kofiqwmrll.execute-api.ap-northeast-2.amazonaws.com/Prod',
+  baseURL: 'https://XXXXXXXrll.execute-api.ap-northeast-2.amazonaws.com/Prod', 
   headers: {
     'Content-Type': 'application/json',
   },
