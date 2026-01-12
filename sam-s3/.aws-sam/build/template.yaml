@@ -1,0 +1,57 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'sam-s3
+
+  Sample SAM Template for sam-s3
+
+  '
+Globals:
+  Function:
+    Timeout: 20
+    MemorySize: 512
+    Runtime: java17
+    Architectures:
+    - x86_64
+    Environment:
+      Variables:
+        BUCKET_NAME:
+          Ref: ProfileBucket
+Resources:
+  ProfileBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName:
+        Fn::Sub: simple-profile-bucket-khw-${AWS::AccountId}
+      CorsConfiguration:
+        CorsRules:
+        - AllowedHeaders:
+          - '*'
+          AllowedMethods:
+          - GET
+          - PUT
+          - POST
+          - HEAD
+          AllowedOrigins:
+          - '*'
+  ProfileFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ProfileFunction
+      Handler: com.example.profile.handler.ProfileHandler::handleRequest
+      Policies:
+      - S3CrudPolicy:
+          BucketName:
+            Ref: ProfileBucket
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /profile/presigned-url
+            Method: post
+    Metadata:
+      SamResourceId: ProfileFunction
+Outputs:
+  ApiEndPoint:
+    Description: API Gateway endpoint URL
+    Value:
+      Fn::Sub: https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/Prod/profile/presigned-url

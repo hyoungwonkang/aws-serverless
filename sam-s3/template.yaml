@@ -1,0 +1,56 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  sam-s3
+
+  Sample SAM Template for sam-s3
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 20
+    MemorySize: 512
+    Runtime: java17
+    Architectures:
+      - x86_64
+    # 생성되는 S3 버킷 이름을 환경 변수로 등록
+    Environment:
+      Variables:
+        BUCKET_NAME: !Ref ProfileBucket
+
+Resources:
+  # S3 버킷
+  ProfileBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      # 버킷 이름 직접 지정
+      BucketName: !Sub "simple-profile-bucket-khw-${AWS::AccountId}"
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: ['*']
+            AllowedMethods: [GET, PUT, POST, HEAD]  # 브라우저나 파일 업로드 라이브러리들이 PUT이나 GET을 하기 전에, 내부적으로 HEAD 요청을 보내 상태를 체크. OPTIONS는 S3가 알아서 하므로 불필요.
+            AllowedOrigins: ['*'] 
+
+  # 람다
+  ProfileFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: ProfileFunction
+      Handler: com.example.profile.handler.ProfileHandler::handleRequest
+      Policies:
+        - S3CrudPolicy: # S3 작업 권한 필요
+            BucketName: !Ref ProfileBucket
+      Events:
+        ApiEvent:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /profile/presigned-url
+            Method: post
+
+Outputs:
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+  ApiEndPoint:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/Prod/profile/presigned-url"
