@@ -1,0 +1,69 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  sam-dynamodb-basic
+
+  Sample SAM Template for sam-dynamodb-basic
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 20
+    MemorySize: 512
+    # 환경 변수로 테이블 이름 주입
+    # 테이블명: "스택이름-리소스이름-랜덤문자열"
+    Environment:
+      Variables:
+        TABLE_NAME: !Ref UserTable
+
+Resources:
+  # DynamoDB 테이블 리소스이름
+  UserTable:
+    # SimpleTable: SAM 제공 간편 버전 (디폴트로 온디맨드 동작)
+    Type: AWS::Serverless::SimpleTable
+    # sam delete 시 테이블 남겨두기
+    # DeletionPolicy: Retain
+    Properties:
+      # PK 설정
+      PrimaryKey:
+        Name: userId
+        Type: String
+      
+  # Lambda 함수 (2개 트리거, DynamoDB 테이블 권한 추가)
+  MyUserFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: UserFunction
+      Handler: com.example.user.controller.UserHandler::handleRequest
+      # Lambda 함수에 DynamoDB 테이블에 CRUD 권한 주기
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UserTable
+      # 트리거
+      Events:
+        # [1] User 등록
+        CreateUser:
+          Type: Api
+          Properties:
+            Path: /users
+            Method: post
+        # [2] User 조회
+        GetUser:
+          Type: Api
+          Properties:
+            Path: /users/{userId}
+            Method: get
+
+Outputs:
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+  UserApi:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/Prod/users/"
+  HelloWorldFunction:
+    Description: "Hello World Lambda Function ARN"
+    Value: !GetAtt HelloWorldFunction.Arn
+  HelloWorldFunctionIamRole:
+    Description: "Implicit IAM Role created for Hello World function"
+    Value: !GetAtt HelloWorldFunctionRole.Arn
