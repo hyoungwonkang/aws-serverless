@@ -1,0 +1,102 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'sam-dynamodb-practice
+
+  Sample SAM Template for sam-dynamodb-practice
+
+  '
+Globals:
+  Function:
+    Timeout: 20
+    MemorySize: 512
+    Runtime: java17
+    Architectures:
+    - x86_64
+    Environment:
+      Variables:
+        TABLE_NAME:
+          Ref: BambooTable
+Resources:
+  BambooTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      PrimaryKey:
+        Name: postId
+        Type: String
+  AuthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: AuthFunction
+      Handler: com.example.auth.AuthHandler::handleRequest
+      Environment:
+        Variables:
+          SECRET_KEY: '{{resolve:ssm:/bamboo/prod/khw/jwt-secret:1}}'
+    Metadata:
+      SamResourceId: AuthFunction
+  BambooApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Auth:
+        Authorizers:
+          MyJwtAuthorizer:
+            FunctionPayloadType: TOKEN
+            FunctionArn:
+              Fn::GetAtt:
+              - AuthFunction
+              - Arn
+            Identity:
+              Header: Authorization
+  BambooFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: BambooFunction
+      Handler: com.example.bamboo.controller.BambooHandler::handleRequest
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: BambooTable
+      Events:
+        CreatePost:
+          Type: Api
+          Properties:
+            Path: /posts
+            Method: post
+            RestApiId:
+              Ref: BambooApi
+            Auth:
+              Authorizer: MyJwtAuthorizer
+        GetPost:
+          Type: Api
+          Properties:
+            Path: /posts/{postId}
+            Method: get
+            RestApiId:
+              Ref: BambooApi
+            Auth:
+              Authorizer: MyJwtAuthorizer
+        UpdatePost:
+          Type: Api
+          Properties:
+            Path: /posts/{postId}
+            Method: put
+            RestApiId:
+              Ref: BambooApi
+            Auth:
+              Authorizer: MyJwtAuthorizer
+        DeletePost:
+          Type: Api
+          Properties:
+            Path: /posts/{postId}
+            Method: delete
+            RestApiId:
+              Ref: BambooApi
+            Auth:
+              Authorizer: MyJwtAuthorizer
+    Metadata:
+      SamResourceId: BambooFunction
+Outputs:
+  BambooApi:
+    Description: API Gateway endpoint URL
+    Value:
+      Fn::Sub: https://${BambooApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/Prod/posts/

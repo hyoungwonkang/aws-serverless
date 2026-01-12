@@ -37,28 +37,67 @@ Resources:
         Variables: # Using AWS SSM Parameter Store (문법: '{{resolve:ssm:파라미터이름:버전}}')
           SECRET_KEY: '{{resolve:ssm:/bamboo/prod/khw/jwt-secret:1}}'
 
+  # API Gateway
+  BambooApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Auth:
+        # DefaultAuthorizer: MyJwtAuthorizer <-- 이게 있으면 API 호출마다 Auth 등록을 피할 수 있음
+        Authorizers:
+          MyJwtAuthorizer:
+            FunctionPayloadType: TOKEN
+            FunctionArn: !GetAtt AuthFunction.Arn
+            Identity:
+              Header: Authorization
+
   # Business Lambda (CRUD 권한 + 인증 필요)
   BambooFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: BambooFunction
+      CodeUri: BambooDbFunction
+      Handler: com.example.bamboo.controller.BambooHandler::handleRequest
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref BambooTable
       Events:
-        HelloWorld:
-          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+        CreatePost:
+          Type: Api
           Properties:
-            Path: /hello
+            Path: /posts
+            Method: post
+            RestApiId: !Ref BambooApi
+            Auth:
+              Authorizer: MyJwtAuthorizer # 인증 처리 우선
+        GetPost:
+          Type: Api
+          Properties:
+            Path: /posts/{postId}
             Method: get
+            RestApiId: !Ref BambooApi
+            Auth:
+              Authorizer: MyJwtAuthorizer # 인증 처리 우선
+        UpdatePost:
+          Type: Api
+          Properties:
+            Path: /posts/{postId}
+            Method: put
+            RestApiId: !Ref BambooApi
+            Auth:
+              Authorizer: MyJwtAuthorizer # 인증 처리 우선
+        DeletePost:
+          Type: Api
+          Properties:
+            Path: /posts/{postId}
+            Method: delete
+            RestApiId: !Ref BambooApi
+            Auth:
+              Authorizer: MyJwtAuthorizer # 인증 처리 우선
 
 Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
   # Find out more about other implicit resources you can reference within SAM
   # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
-  HelloWorldApi:
-    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/Prod/hello/"
-  HelloWorldFunction:
-    Description: "Hello World Lambda Function ARN"
-    Value: !GetAtt HelloWorldFunction.Arn
-  HelloWorldFunctionIamRole:
-    Description: "Implicit IAM Role created for Hello World function"
-    Value: !GetAtt HelloWorldFunctionRole.Arn
+  BambooApi:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${BambooApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/Prod/posts/"
