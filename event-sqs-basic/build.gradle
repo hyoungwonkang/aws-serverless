@@ -1,0 +1,20 @@
+plugins {
+    id 'java'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'com.amazonaws:aws-lambda-java-core:1.2.2'
+    implementation 'com.amazonaws:aws-lambda-java-events:3.11.0'
+    // AWS SDK BOM
+    implementation platform('software.amazon.awssdk:bom:2.29.51')
+
+    // SNS
+    implementation 'software.amazon.awssdk:sns'
+}
+
+sourceCompatibility = 17
+targetCompatibility = 17

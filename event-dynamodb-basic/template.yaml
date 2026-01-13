@@ -1,0 +1,65 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  event-dynamodb-basic
+
+  Sample SAM Template for event-dynamodb-basic
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 20
+    MemorySize: 512
+    Runtime: java17
+    Architectures:
+      - x86_64
+
+Resources:
+  # 상품 테이블 - 감시 대상
+  # AWS::Serverless::SimpleTable을 사용하지 않음.
+  # 이유는 StreamSpecification 등 세부 설정을 직접 제어하기 위함.
+  ProductTable:
+    Type: AWS::DynamoDB::Table # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      TableName: serverless-product-Table-khw
+      # 요청한 만큼만 돈을 내는 온디맨드 방식
+      BillingMode: PAY_PER_REQUEST
+      # [키 스키마 정의] PK, SK 설정
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH # HASH = Partition Key (기본키)
+        - AttributeName: timestamp
+          KeyType: RANGE # RANGE = Sort Key (정렬키)
+      # DynamoDB Streams 활성화
+      # 이 설정이 있어야 데이터가 변경될 때마다 "변경 내역"이 스트림으로 흘러나옴
+      # 종류
+      # 1. NEW_AND_OLD_IMAGES: 변경 전/후 데이터 모두 보냄
+      # 2. NEW_IMAGE         : 변경 후 데이터만 보냄
+      # 3. OLD_IMAGE         : 변경 전 데이터만 보냄
+      # 4. KEYS_ONLY         : 데이터 빼고, PK/SK만 보냄 (뭔가 변했다는 신호만 필요할 때)
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+  
+  # 람다 (Consumer) - 감시자
+  # DynamoDB에서 흘러나온 스트림 데이터를 낚아채서 처리하는 함수
+  AuditLogFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: com.example.event.AuditLogHandler::handleRequest
+      Policies:
+        - DynamoDBCrudPolicy: # DB CRUD 권한
+            TableName: !Ref ProductTable
+      Events:
+        #[트리거] 람다와 DynamoDB 스트림 연결
+        StreamTrigger:
+          Type: DynamoDB
+          Properties:
+            Stream: !GetAtt ProductTable.StreamArn # 테이블의 스트림 주소(ARN)를 연결
+            StartingPosition: LATEST # 가장 최신 변경사항부터 읽기
+            BatchSize: 1 # [최적화] 한 번에 1개씩 처리
