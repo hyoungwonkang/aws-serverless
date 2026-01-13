@@ -1,0 +1,62 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'event-s3-practice
+
+  Sample SAM Template for event-s3-practice
+
+  '
+Globals:
+  Function:
+    Timeout: 20
+    MemorySize: 512
+    Runtime: java17
+    Architectures:
+    - x86_64
+Resources:
+  MyBucket:
+    Type: AWS::S3::Bucket
+  CreateTextFileFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: CreateTextFileFunction
+      Handler: com.example.event.CreateTextFileHandler::handleRequest
+      Policies:
+      - S3CrudPolicy:
+          BucketName: '*'
+      Events:
+        CreateTextFile:
+          Type: S3
+          Properties:
+            Bucket:
+              Ref: MyBucket
+            Events: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                - Name: prefix
+                  Value: logs/
+                - Name: suffix
+                  Value: .txt
+    Metadata:
+      SamResourceId: CreateTextFileFunction
+  DeleteTextFileFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: DeleteTextFileFunction
+      Handler: com.example.event.DeleteTextFileHandler::handleRequest
+      Events:
+        DeleteTextFile:
+          Type: S3
+          Properties:
+            Bucket:
+              Ref: MyBucket
+            Events: s3:ObjectRemoved:*
+            Filter:
+              S3Key:
+                Rules:
+                - Name: prefix
+                  Value: logs/
+                - Name: suffix
+                  Value: .txt
+    Metadata:
+      SamResourceId: DeleteTextFileFunction

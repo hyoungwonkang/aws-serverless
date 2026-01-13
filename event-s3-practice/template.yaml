@@ -10,37 +10,61 @@ Globals:
   Function:
     Timeout: 20
     MemorySize: 512
+    Runtime: java17
+    Architectures:
+      - x86_64
 
 Resources:
-  HelloWorldFunction:
+  # 감시할 S3 버킷
+  MyBucket:
+    Type: AWS::S3::Bucket
+
+  # 텍스트 파일 생성 시 동작할 Lambda 함수
+  CreateTextFileFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
-      CodeUri: HelloWorldFunction
-      Handler: helloworld.App::handleRequest
-      Runtime: java17
-      Architectures:
-        - x86_64
-      MemorySize: 512
-      Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
-        Variables:
-          PARAM1: VALUE
+      CodeUri: .
+      Handler: com.example.event.CreateTextFileHandler::handleRequest
+      # S3 읽기 권한
+      Policies:
+        - S3CrudPolicy:
+            BucketName: "*" 
+            # BucketName: !Ref MyBucket <--- Circular Dependencies for resource MyBucket
       Events:
-        HelloWorld:
-          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+        CreateTextFile:
+          Type: S3
           Properties:
-            Path: /hello
-            Method: get
+            Bucket: !Ref MyBucket
+            Events: s3:ObjectCreated:* # 파일 생성(모든 메서드) 시 발동
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: logs/ # logs 폴더만 감시
+                  - Name: suffix
+                    Value: .txt # .txt 파일만 감시
 
-Outputs:
-  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
-  # Find out more about other implicit resources you can reference within SAM
-  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
-  HelloWorldApi:
-    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/Prod/hello/"
-  HelloWorldFunction:
-    Description: "Hello World Lambda Function ARN"
-    Value: !GetAtt HelloWorldFunction.Arn
-  HelloWorldFunctionIamRole:
-    Description: "Implicit IAM Role created for Hello World function"
-    Value: !GetAtt HelloWorldFunctionRole.Arn
+  # 텍스트 파일 삭제 시 동작할 Lambda 함수
+  DeleteTextFileFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: .
+      Handler: com.example.event.DeleteTextFileHandler::handleRequest
+      # 삭제 감시만 하므로 S3 접근 권한 불필요
+      # Policies:
+      #  - S3CrudPolicy:
+      #      # BucketName: "*" 
+      #      BucketName: !Ref MyBucket 
+      Events:
+        DeleteTextFile:
+          Type: S3
+          Properties:
+            Bucket: !Ref MyBucket
+            Events: s3:ObjectRemoved:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: logs/ # logs 폴더만 감시
+                  - Name: suffix
+                    Value: .txt # .txt 파일만 감시

@@ -1,0 +1,23 @@
+plugins {
+    id 'java'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'com.amazonaws:aws-lambda-java-core:1.2.2'
+    implementation 'com.amazonaws:aws-lambda-java-events:3.11.0'
+    // AWS SDK BOM
+    implementation platform('software.amazon.awssdk:bom:2.21.29')
+
+    // S3
+    implementation 'software.amazon.awssdk:s3'
+
+    // 썸네일
+    implementation 'net.coobird:thumbnailator:0.4.21'
+}
+
+sourceCompatibility = 17
+targetCompatibility = 17
